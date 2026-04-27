@@ -1,0 +1,138 @@
+from pathlib import Path
+
+
+CONFIG = {
+    "project_name": "house-prices-pipeline",
+    "seed": 42,
+    "task": {
+        "type": "regression",
+        "target_column": "SalePrice",
+        "id_column": "Id",
+    },
+    "data": {
+        "train_path": "train.csv",
+        "test_path": "test.csv",
+        "data_description_path": "data_description.txt",
+    },
+    "cv": {
+        "n_splits": 5,
+        "stratify_bins": 10,
+        "validation_size": 0.2,
+    },
+    "outputs": {
+        "base_dir": "outputs",
+        "models_dir": "models",
+        "results_table_filename": "model_results.csv",
+        "dataset_summary_filename": "dataset_summary.csv",
+        "best_result_filename": "best_result.json",
+        "run_summary_filename": "run_summary.json",
+        "submission_filename": "submission_best.csv",
+    },
+    "pipeline": {
+        "sort_metric": "val_rmse_log_saleprice",
+        "save_submission": True,
+        "save_model_artifact": True,
+    },
+    "candidates": [
+        {
+            "name": "catboost_mixed",
+            "model_key": "catboost",
+            "dataset_key": "catboost_processed_mixed",
+            "target_strategy": "log_saleprice",
+            "preprocessor_kind": None,
+            "params": {
+                "iterations": 600,
+                "learning_rate": 0.06,
+                "depth": 6,
+                "l2_leaf_reg": 3,
+                "loss_function": "RMSE",
+                "verbose": False,
+                "allow_writing_files": False,
+            },
+        },
+        {
+            "name": "linear_ridge_ppsqft",
+            "model_key": "ridge",
+            "dataset_key": "linear_price_comparison",
+            "target_strategy": "log_price_per_sqft",
+            "preprocessor_kind": "scaled",
+            "params": {
+                "alpha": 1.0,
+            },
+        },
+        {
+            "name": "knn_ppsqft",
+            "model_key": "knn",
+            "dataset_key": "linear_price_comparison",
+            "target_strategy": "log_price_per_sqft",
+            "preprocessor_kind": "scaled",
+            "params": {
+                "n_neighbors": 11,
+                "weights": "distance",
+                "p": 1,
+                "n_jobs": -1,
+            },
+        },
+        {
+            "name": "random_forest_onehot",
+            "model_key": "random_forest",
+            "dataset_key": "processed_full_onehot",
+            "target_strategy": "log_saleprice",
+            "preprocessor_kind": "impute_only",
+            "params": {
+                "n_estimators": 300,
+                "criterion": "squared_error",
+                "max_depth": 20,
+                "min_samples_split": 2,
+                "min_samples_leaf": 1,
+                "max_features": 1.0,
+                "bootstrap": True,
+                "n_jobs": -1,
+            },
+        },
+        {
+            "name": "random_forest_numeric",
+            "model_key": "random_forest",
+            "dataset_key": "processed_full_numeric",
+            "target_strategy": "log_saleprice",
+            "preprocessor_kind": "impute_only",
+            "params": {
+                "n_estimators": 300,
+                "criterion": "squared_error",
+                "max_depth": 20,
+                "min_samples_split": 2,
+                "min_samples_leaf": 1,
+                "max_features": 1.0,
+                "bootstrap": True,
+                "n_jobs": -1,
+            },
+        },
+        {
+            "name": "decision_tree_numeric",
+            "model_key": "decision_tree",
+            "dataset_key": "processed_full_numeric",
+            "target_strategy": "log_saleprice",
+            "preprocessor_kind": "impute_only",
+            "params": {
+                "criterion": "poisson",
+                "max_depth": 10,
+                "min_samples_split": 10,
+                "min_samples_leaf": 2,
+            },
+        },
+        {
+            "name": "decision_tree_onehot",
+            "model_key": "decision_tree",
+            "dataset_key": "processed_full_onehot",
+            "target_strategy": "log_saleprice",
+            "preprocessor_kind": "impute_only",
+            "params": {
+                "criterion": "poisson",
+                "max_depth": 10,
+                "min_samples_split": 10,
+                "min_samples_leaf": 2,
+            },
+        },
+    ],
+}
+
