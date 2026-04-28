@@ -22,6 +22,7 @@ from src.features import build_impute_only_numeric_preprocessor, build_numeric_p
 
 
 def get_training_target(dataset_data, target_strategy):
+    """Build the target vector requested by a model candidate."""
     if target_strategy == "log_saleprice":
         return np.log(np.asarray(dataset_data["y"], dtype=float))
 
@@ -37,6 +38,7 @@ def get_training_target(dataset_data, target_strategy):
 
 
 def convert_predictions_to_log_saleprice(y_pred_target, X_features, target_strategy):
+    """Convert any supported target prediction back to log SalePrice."""
     y_pred_target = np.asarray(y_pred_target, dtype=float)
     if target_strategy == "log_saleprice":
         return y_pred_target
@@ -53,10 +55,12 @@ def convert_predictions_to_log_saleprice(y_pred_target, X_features, target_strat
 
 
 def convert_predictions_to_saleprice(y_pred_target, X_features, target_strategy):
+    """Convert model target predictions to original SalePrice values."""
     return np.exp(convert_predictions_to_log_saleprice(y_pred_target, X_features, target_strategy))
 
 
 def build_estimator(model_key, params, seed):
+    """Instantiate a configured estimator and inject reproducibility settings."""
     model_params = deepcopy(params)
 
     if model_key == "linear_regression":
@@ -82,6 +86,7 @@ def build_estimator(model_key, params, seed):
 
 
 def build_preprocessor(dataset_data, preprocessor_kind):
+    """Select the preprocessing pipeline requested by a candidate."""
     if preprocessor_kind == "scaled":
         return build_numeric_preprocessor(dataset_data)
     if preprocessor_kind == "impute_only":
@@ -93,10 +98,12 @@ def build_preprocessor(dataset_data, preprocessor_kind):
 
 
 def fit_predict_target(candidate, dataset_data, X_train, y_train, X_pred, seed):
+    """Fit one candidate on a split and return predictions in its target space."""
     train_target = get_training_target({"X": X_train, "y": y_train}, candidate["target_strategy"])
     estimator = build_estimator(candidate["model_key"], candidate.get("params", {}), seed=seed)
 
     if candidate["model_key"] == "catboost":
+        # CatBoost receives categorical feature names directly instead of sklearn preprocessing.
         estimator.fit(X_train, train_target, cat_features=dataset_data.get("cat_features", []))
         y_pred_target = estimator.predict(X_pred)
         return y_pred_target, estimator
@@ -118,6 +125,7 @@ def fit_predict_target(candidate, dataset_data, X_train, y_train, X_pred, seed):
 
 
 def train_and_evaluate_candidate(candidate, dataset_data, cv_config, seed):
+    """Evaluate one candidate with inner CV and an outer validation holdout."""
     X_data = dataset_data["X"]
     y_data = dataset_data["y"]
 
@@ -130,6 +138,7 @@ def train_and_evaluate_candidate(candidate, dataset_data, cv_config, seed):
     )
 
     fold_metrics = []
+    # The inner folds estimate stability; the outer split is used for final candidate ranking.
     for fold, X_train, X_val, y_train, y_val in iter_stratified_folds(
         X_train_outer,
         y_train_outer,
@@ -179,6 +188,7 @@ def train_and_evaluate_candidate(candidate, dataset_data, cv_config, seed):
 
 
 def evaluate_candidates(candidates, dataset_registry, cv_config, seed, sort_metric="val_rmse_log_saleprice"):
+    """Evaluate all configured candidates and return a sorted comparison table."""
     result_rows = []
     for candidate in candidates:
         dataset_key = candidate["dataset_key"]
@@ -197,6 +207,7 @@ def evaluate_candidates(candidates, dataset_registry, cv_config, seed, sort_metr
 
 
 def select_best_candidate(results_df, candidates, sort_metric):
+    """Find the best candidate config from the sorted results table."""
     best_result = results_df.sort_values(sort_metric).iloc[0]
     candidate_name = best_result["candidate_name"]
     candidate_lookup = {candidate["name"]: candidate for candidate in candidates}
@@ -204,6 +215,7 @@ def select_best_candidate(results_df, candidates, sort_metric):
 
 
 def get_candidate_by_name(candidates, candidate_name):
+    """Return a configured candidate by name."""
     candidate_lookup = {candidate["name"]: candidate for candidate in candidates}
     if candidate_name not in candidate_lookup:
         raise KeyError(f"Unknown candidate_name: {candidate_name}")
@@ -211,6 +223,7 @@ def get_candidate_by_name(candidates, candidate_name):
 
 
 def fit_full_candidate(candidate, train_dataset, seed):
+    """Fit the selected candidate on the full training dataset."""
     train_target = get_training_target(train_dataset, candidate["target_strategy"])
     estimator = build_estimator(candidate["model_key"], candidate.get("params", {}), seed=seed)
 

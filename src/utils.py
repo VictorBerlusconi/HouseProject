@@ -7,6 +7,7 @@ import numpy as np
 
 
 def load_config(config_path):
+    """Load project configuration from a Python or YAML file."""
     config_path = Path(config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -33,11 +34,13 @@ def load_config(config_path):
 
 
 def ensure_directories(paths):
+    """Create output directories if they do not already exist."""
     for path in paths:
         Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def set_global_seed(seed):
+    """Set random seeds for supported libraries used in experiments."""
     random.seed(seed)
     np.random.seed(seed)
     try:
@@ -51,6 +54,7 @@ def set_global_seed(seed):
 
 
 def save_json(payload, output_path):
+    """Save a JSON artifact with support for common numpy/path objects."""
     def _default_serializer(value):
         if isinstance(value, Path):
             return str(value)

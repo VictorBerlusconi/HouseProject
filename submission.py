@@ -14,6 +14,7 @@ from src.utils import ensure_directories, load_config, save_json, set_global_see
 
 
 def parse_args():
+    """Parse command-line arguments for submission generation."""
     parser = argparse.ArgumentParser(description="Generate a House Prices submission file.")
     parser.add_argument(
         "--config",
@@ -34,6 +35,7 @@ def parse_args():
 
 
 def main():
+    """Fit a selected or best candidate and write a submission file."""
     args = parse_args()
     config = load_config(args.config)
 
@@ -65,6 +67,7 @@ def main():
     if args.candidate:
         candidate = get_candidate_by_name(config["candidates"], args.candidate)
     else:
+        # Without an explicit candidate, reproduce model selection before submission.
         results_df = evaluate_candidates(
             candidates=config["candidates"],
             dataset_registry=dataset_registry,

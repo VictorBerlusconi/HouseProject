@@ -6,6 +6,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
+# Missing values in these columns mean absence of a house feature, not unknown data.
 MISSING_CATEGORY_LABELS = {
     "Alley": "NoAlleyAccess",
     "BsmtQual": "NoBasement",
@@ -23,6 +24,7 @@ MISSING_CATEGORY_LABELS = {
     "MiscFeature": "None",
 }
 
+# Ordered categorical values are converted to numeric rank before modeling.
 ORDINAL_MAPPINGS = {
     "LotShape": {"Reg": 4, "IR1": 3, "IR2": 2, "IR3": 1},
     "Utilities": {"AllPub": 4, "NoSewr": 3, "NoSeWa": 2, "ELO": 1},
@@ -49,6 +51,7 @@ ORDINAL_MAPPINGS = {
 
 
 def prepare_common_data(df_input):
+    """Apply shared missing-value handling and ordinal encoding."""
     df_prepared = df_input.copy()
 
     for column, fill_value in MISSING_CATEGORY_LABELS.items():
@@ -63,12 +66,14 @@ def prepare_common_data(df_input):
 
 
 def split_X_y(df_input, target_column, id_column):
+    """Split a competition dataframe into model features and target."""
     X = df_input.drop(columns=[target_column, id_column], errors="ignore").copy()
     y = df_input[target_column].copy()
     return X, y
 
 
 def log_target(y):
+    """Return a log-transformed target series with index preserved."""
     y_series = y.copy() if isinstance(y, pd.Series) else pd.Series(y)
     y_series = y_series.astype(float)
     target_name = y_series.name or "target"
@@ -76,10 +81,12 @@ def log_target(y):
 
 
 def categorical_columns(df_input):
+    """Return columns that should be treated as categorical."""
     return df_input.select_dtypes(include=["object", "string", "category"]).columns.tolist()
 
 
 def prepare_onehot_features(X_data):
+    """One-hot encode remaining categorical columns for sklearn estimators."""
     X_encoded = X_data.copy()
     onehot_categorical_columns = categorical_columns(X_encoded)
 
@@ -97,15 +104,18 @@ def prepare_onehot_features(X_data):
 
 
 def get_ordinal_columns(X_data):
+    """Return ordinal-encoded columns present in the given feature frame."""
     return [column for column in ORDINAL_MAPPINGS if column in X_data.columns]
 
 
 def get_scale_columns(X_data):
+    """Return non-ordinal numeric columns that are safe to scale."""
     ordinal_columns = set(get_ordinal_columns(X_data))
     return [column for column in X_data.columns if column not in ordinal_columns]
 
 
 def build_numeric_preprocessor(dataset_data):
+    """Build imputation and scaling preprocessing for linear/distance models."""
     return ColumnTransformer(
         transformers=[
             (
@@ -134,6 +144,7 @@ def build_numeric_preprocessor(dataset_data):
 
 
 def build_impute_only_numeric_preprocessor(dataset_data):
+    """Build imputation-only preprocessing for tree-based sklearn models."""
     return ColumnTransformer(
         transformers=[
             (
@@ -157,10 +168,12 @@ def build_impute_only_numeric_preprocessor(dataset_data):
 
 
 def make_linear_price_comparison_dataset(df_input, target_column, id_column):
+    """Build a numeric dataset for direct price and price-per-square-foot tests."""
     df_work = df_input.copy()
     df_work["PricePerSqFt"] = df_work[target_column] / df_work["GrLivArea"]
     df_work = df_work[np.isfinite(df_work["PricePerSqFt"])].copy()
 
+    # Trim extreme price-per-square-foot outliers before linear/distance models.
     cutoff = df_work["PricePerSqFt"].quantile(0.99)
     df_work = df_work[df_work["PricePerSqFt"] <= cutoff].copy()
 
@@ -194,6 +207,7 @@ def make_linear_price_comparison_dataset(df_input, target_column, id_column):
 
 
 def make_processed_full_numeric_dataset(df_input, target_column, id_column):
+    """Build the prepared numeric-only dataset."""
     X, y = split_X_y(df_input, target_column=target_column, id_column=id_column)
     X = X.select_dtypes(include="number").copy()
 
@@ -216,6 +230,7 @@ def make_processed_full_numeric_dataset(df_input, target_column, id_column):
 
 
 def make_processed_full_onehot_dataset(df_input, target_column, id_column):
+    """Build a full-feature dataset with remaining categoricals one-hot encoded."""
     X, y = split_X_y(df_input, target_column=target_column, id_column=id_column)
     X = prepare_onehot_features(X)
 
@@ -239,6 +254,7 @@ def make_processed_full_onehot_dataset(df_input, target_column, id_column):
 
 
 def make_catboost_dataset(df_input, target_column, id_column):
+    """Build a mixed numeric/categorical dataset for CatBoost."""
     X, y = split_X_y(df_input, target_column=target_column, id_column=id_column)
     cat_features = categorical_columns(X)
 
@@ -261,6 +277,7 @@ def make_catboost_dataset(df_input, target_column, id_column):
 
 
 def build_dataset_registry(df_input, target_column, id_column):
+    """Create all train dataset variants used by configured candidates."""
     recipes = {
         "linear_price_comparison": make_linear_price_comparison_dataset,
         "processed_full_numeric": make_processed_full_numeric_dataset,
@@ -274,6 +291,7 @@ def build_dataset_registry(df_input, target_column, id_column):
 
 
 def build_dataset_summary(dataset_registry):
+    """Summarize dataset variants for run artifacts and review."""
     rows = []
     for name, data in dataset_registry.items():
         rows.append(
@@ -292,9 +310,11 @@ def build_dataset_summary(dataset_registry):
 
 
 def build_test_dataset(dataset_key, train_dataset, prepared_test_df, target_column, id_column):
+    """Prepare test features so their columns match the selected train dataset."""
     if train_dataset.get("encoding") == "onehot":
         X_test = prepared_test_df.drop(columns=[target_column, id_column], errors="ignore").copy()
         X_test = prepare_onehot_features(X_test)
+        # Test can have missing or unseen dummy columns; align to train schema.
         X_test = X_test.reindex(columns=train_dataset["X"].columns, fill_value=0.0)
     elif train_dataset.get("cat_features"):
         X_test = prepared_test_df.drop(columns=[target_column, id_column], errors="ignore").copy()
@@ -315,4 +335,3 @@ def build_test_dataset(dataset_key, train_dataset, prepared_test_df, target_colu
         "cat_features": train_dataset.get("cat_features", []),
         "target": train_dataset.get("target"),
     }
-

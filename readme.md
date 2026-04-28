@@ -62,12 +62,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Note:
-
-- `lightgbm` is included because it was used in notebook experiments.
-- On macOS, `lightgbm` may additionally require `libomp`.
-- The scripted pipeline does not depend on LightGBM.
-
 ## Data Placement
 
 Place the Kaggle competition files in the repository root:
@@ -209,5 +203,7 @@ The notebook is intended for:
 - hypothesis testing
 - model experiments
 - additional comparisons not yet promoted into the scripted pipeline
+
+Notebook-only experiments are not run by `main.py` until their feature logic and candidates are promoted into `src/` and `config.py`.
 
 The root `housing_prices.ipynb` is kept as the working notebook history, while `notebooks/EDA.ipynb` is the packaged exploratory copy.

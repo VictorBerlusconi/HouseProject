@@ -14,6 +14,7 @@ from src.utils import ensure_directories, load_config, save_json, set_global_see
 
 
 def parse_args():
+    """Parse command-line arguments for the full training pipeline."""
     parser = argparse.ArgumentParser(description="Run the reproducible House Prices pipeline.")
     parser.add_argument(
         "--config",
@@ -24,6 +25,7 @@ def parse_args():
 
 
 def main():
+    """Run data loading, model selection, final fit, and submission generation."""
     args = parse_args()
     config = load_config(args.config)
 
@@ -47,6 +49,7 @@ def main():
         target_column=target_column,
         id_column=id_column,
     )
+    # Persist dataset shape/metadata so reviewers can inspect what each candidate used.
     dataset_summary = build_dataset_summary(dataset_registry)
     dataset_summary_path = output_base / config["outputs"]["dataset_summary_filename"]
     dataset_summary.to_csv(dataset_summary_path, index=False)
@@ -61,6 +64,7 @@ def main():
     results_path = output_base / config["outputs"]["results_table_filename"]
     results_df.to_csv(results_path, index=False)
 
+    # The configured sort metric controls which candidate is fitted on all training data.
     best_candidate, best_result = select_best_candidate(
         results_df=results_df,
         candidates=config["candidates"],
@@ -98,6 +102,7 @@ def main():
 
     submission_path = None
     if config["pipeline"]["save_submission"] and test_prepared is not None:
+        # Test features are rebuilt to match the selected train dataset's schema.
         test_dataset = build_test_dataset(
             dataset_key=best_candidate["dataset_key"],
             train_dataset=train_dataset,

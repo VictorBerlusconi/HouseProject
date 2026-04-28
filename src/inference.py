@@ -8,6 +8,7 @@ from src.utils import save_json
 
 
 def predict_test_dataset(fitted_bundle, test_dataset):
+    """Generate SalePrice predictions for a prepared test dataset."""
     model = fitted_bundle["model"]
     candidate = fitted_bundle["candidate"]
     y_pred_target = model.predict(test_dataset["X"])
@@ -19,6 +20,7 @@ def predict_test_dataset(fitted_bundle, test_dataset):
 
 
 def generate_submission(raw_test_df, predictions, id_column, output_path):
+    """Write a Kaggle-style submission file with ID and SalePrice columns."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     submission_df = pd.DataFrame(
@@ -32,6 +34,7 @@ def generate_submission(raw_test_df, predictions, id_column, output_path):
 
 
 def save_model_artifact(fitted_bundle, candidate, models_dir):
+    """Save the fitted model and candidate metadata to the models directory."""
     models_dir = Path(models_dir)
     models_dir.mkdir(parents=True, exist_ok=True)
     artifact_stem = candidate["name"]
@@ -46,4 +49,3 @@ def save_model_artifact(fitted_bundle, candidate, models_dir):
     metadata_path = models_dir / f"{artifact_stem}.metadata.json"
     save_json(candidate, metadata_path)
     return artifact_path
-
